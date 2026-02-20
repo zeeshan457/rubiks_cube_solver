@@ -1,5 +1,5 @@
 # Rubik's Cube Solver - Java Implementation
-## Author Zeeshan 
+# Zeeshan M
 
 A comprehensive implementation of a 3×3 Rubik's Cube solver featuring multiple data structure representations and search algorithms, achieving sub-3-second solving for 8-move scrambles and sub-10-second solving for 13-move scrambles using advanced heuristic search.
 
@@ -169,12 +169,34 @@ h(n) = Σ (distance of each cubie from home position) / 4
 javac *.java
 ```
 
-### Run Main Benchmark
+### Run Main Benchmark (with increased memory)
 ```bash
+# Recommended: Use at least 512MB of heap for BFS
+java -Xmx512m RubiksCubeSolver
+
+# For larger searches or multiple benchmarks:
+java -Xmx1g RubiksCubeSolver
+
+# Default (may cause OOM for BFS):
 java RubiksCubeSolver
 ```
 
-### Custom Usage Example
+### Understanding Memory Requirements
+
+Different algorithms have vastly different memory needs:
+
+| Algorithm | Memory for 8-move | Memory for 10-move | Recommended Heap |
+|-----------|-------------------|-------------------|------------------|
+| BFS       | ~100-200 MB      | ~500+ MB          | -Xmx512m or more |
+| DFS       | ~1-5 MB          | ~5-10 MB          | Default is fine  |
+| IDDFS     | ~1-5 MB          | ~5-10 MB          | Default is fine  |
+| IDA*      | ~5-20 MB         | ~20-50 MB         | -Xmx256m+        |
+
+**Why the difference?**
+- BFS stores all states at current depth (exponential in space)
+- DFS/IDDFS/IDA* only store the current path (linear in space)
+
+With move pruning, the effective branching factor is reduced from 18 to ~8-10, which helps but BFS still requires significant memory for scrambles > 7 moves.
 ```java
 // Create a cube using any model
 RubiksCube cube = new CubieBasedCube();
@@ -278,7 +300,5 @@ List<RubiksCube.Move> solution = BFSSolver.solve(cube, 10);
 ## License
 
 Educational project - free to use and modify.
-
-## Author
 
 Implementation of classic Rubik's Cube solving algorithms demonstrating state-space modeling, search algorithms, heuristic-based problem solving, and performance optimization techniques.
