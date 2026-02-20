@@ -9,6 +9,12 @@ public class RubiksCubeSolver {
   public static void main(String[] args) {
     System.out.println("=== RUBIK'S CUBE SOLVER ===\n");
 
+    // Print JVM memory info
+    Runtime runtime = Runtime.getRuntime();
+    long maxMemory = runtime.maxMemory() / (1024 * 1024);
+    System.out.println("Max JVM Memory: " + maxMemory + " MB");
+    System.out.println("(Use -Xmx512m or -Xmx1g to increase if needed)\n");
+
     // Test all three models
     testModels();
 
@@ -21,11 +27,6 @@ public class RubiksCubeSolver {
 
     // Benchmark IDA* with 13-move scramble
     benchmarkDeepScramble();
-
-    System.out.println("\n" + "=".repeat(60) + "\n");
-
-    // Performance comparison
-    performanceComparison();
   }
 
   private static void testModels() {
@@ -87,14 +88,17 @@ public class RubiksCubeSolver {
     System.out.println("Scramble sequence: " + Arrays.toString(scramble));
     System.out.println();
 
-    // Test BFS
-    testSolver("BFS", cube.clone(), () -> BFSSolver.solve(cube.clone(), 12));
+    // Test IDDFS (most reliable for 8 moves)
+    testSolver("IDDFS (Recommended)", cube.clone(), () -> IDDFSSolver.solve(cube.clone(), 10));
 
     // Test DFS
-    testSolver("DFS", cube.clone(), () -> DFSSolver.solve(cube.clone(), 15));
+    testSolver("DFS", cube.clone(), () -> DFSSolver.solve(cube.clone(), 12));
 
-    // Test IDDFS
-    testSolver("IDDFS", cube.clone(), () -> IDDFSSolver.solve(cube.clone(), 12));
+    // Test BFS (with lower depth to avoid memory issues)
+    System.out.println("BFS Solver:");
+    System.out.println("  Note: BFS requires ~100MB+ memory for 8-move scrambles");
+    System.out.println("  Testing with depth limit 8 (may not find solution if longer)...");
+    testSolver("BFS (depth limited)", cube.clone(), () -> BFSSolver.solve(cube.clone(), 8));
   }
 
   private static void benchmarkDeepScramble() {
@@ -124,41 +128,25 @@ public class RubiksCubeSolver {
         () -> AdvancedIDAStarSolver.solve(cube.clone()));
   }
 
-  private static void performanceComparison() {
-    System.out.println("PERFORMANCE COMPARISON:\n");
-
-    int[] scrambleLengths = { 5, 7, 8, 10 };
-
-    for (int length : scrambleLengths) {
-      System.out.println("Scramble length: " + length + " moves");
-
-      CubieBasedCube cube = new CubieBasedCube();
-      cube.scramble(length);
-
-      // Test different solvers
-      System.out.println("  BFS: ");
-      long start = System.currentTimeMillis();
-      List<RubiksCube.Move> bfsSolution = BFSSolver.solve(cube.clone(), 15);
-      long bfsTime = System.currentTimeMillis() - start;
-      System.out.println("    Time: " + bfsTime + "ms, Solution length: " +
-          (bfsSolution != null ? bfsSolution.size() : "N/A"));
-
-      System.out.println("  IDDFS: ");
-      start = System.currentTimeMillis();
-      List<RubiksCube.Move> iddfsSolution = IDDFSSolver.solve(cube.clone(), 15);
-      long iddfsTime = System.currentTimeMillis() - start;
-      System.out.println("    Time: " + iddfsTime + "ms, Solution length: " +
-          (iddfsSolution != null ? iddfsSolution.size() : "N/A"));
-
-      System.out.println();
-    }
-  }
-
   private static void testSolver(String name, RubiksCube testCube, SolverFunction solver) {
-    System.out.println(name + " Solver:");
+    if (!name.contains("Note:") && !name.contains("BFS")) {
+      System.out.println(name + " Solver:");
+    }
 
     long startTime = System.currentTimeMillis();
-    List<RubiksCube.Move> solution = solver.solve();
+    List<RubiksCube.Move> solution = null;
+
+    try {
+      solution = solver.solve();
+    } catch (OutOfMemoryError e) {
+      long elapsed = System.currentTimeMillis() - startTime;
+      System.out.println("  ✗ Out of memory!");
+      System.out.println("  Time before OOM: " + elapsed + "ms");
+      System.out.println("  Tip: Run with -Xmx512m or -Xmx1g for more memory");
+      System.out.println();
+      return;
+    }
+
     long elapsed = System.currentTimeMillis() - startTime;
 
     if (solution != null) {
@@ -192,40 +180,5 @@ public class RubiksCubeSolver {
   @FunctionalInterface
   interface SolverFunction {
     List<RubiksCube.Move> solve();
-  }
-
-  // Additional utility methods
-  public static void demonstrateSpaceComplexity() {
-    System.out.println("SPACE COMPLEXITY ANALYSIS:\n");
-
-    System.out.println("Model 1 (Face-Based): 6 faces × 3×3 ints = 216 bytes");
-    System.out.println("Model 2 (Cubie-Based): 8+12 positions + 8+12 orientations = 80 bytes");
-    System.out.println("Model 3 (Bitboard): 3 longs = 24 bytes (most efficient!)");
-    System.out.println();
-
-    System.out.println("Algorithm Space Complexity:");
-    System.out.println("BFS: O(b^d) - Stores entire level");
-    System.out.println("DFS: O(d) - Only stores path");
-    System.out.println("IDDFS: O(d) - Combines benefits");
-    System.out.println("IDA*: O(d) - Plus pattern database");
-  }
-
-  public static void demonstrateTimeComplexity() {
-    System.out.println("TIME COMPLEXITY ANALYSIS:\n");
-
-    System.out.println("BFS: O(b^d) where b=18 moves, d=depth");
-    System.out.println("  Optimal but exponential in memory");
-    System.out.println();
-
-    System.out.println("DFS: O(b^d) but faster in practice");
-    System.out.println("  May find non-optimal solution");
-    System.out.println();
-
-    System.out.println("IDDFS: O(b^d) with better constants");
-    System.out.println("  Optimal and memory-efficient");
-    System.out.println();
-
-    System.out.println("IDA*: O(b^d) but heavily pruned by heuristic");
-    System.out.println("  Best practical performance for deep searches");
   }
 }
